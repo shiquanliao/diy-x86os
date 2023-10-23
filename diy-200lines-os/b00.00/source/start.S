@@ -39,11 +39,31 @@ _read_self_all:
 	jc _read_self_all	// 如果读磁盘失败，就一直重试
 
 
-	jmp .
+	// 加载ldt和gdt表, 进入保护模式
+	cli					// 关闭中断
+	lgdt gdt_desc		// 加载gdt描述符到gdtr寄存器
+	mov $1, %eax
+	lmsw %ax			// 加载cr0寄存器
+	jmp $KERNEL_CODE_SEG, $_start_32	// 跳转到32位代码区
+
     .org 0x1fe			// 0x1fe是主引导记录的最后2个字节
 	.byte 0x55, 0xaa	// 主引导记录的最后2个字节必须是0x55和0xaa
 
+	// 32位保护模式, 位于512字节之后, 第二个扇区
+	.code32				// 代码生成32位的机器指令
+	.text				// 代码区
 	
 _start_32:
-	.fill 64*1024, 1, 0x35	// 用0x35填充64KB，这样就把代码区填充满了
+	// 重新加载数据段寄存器
+	mov $KERNEL_DATA_SEG, %ax	// 设置ax寄存器的值为KERNEL_DATA_SEG，这是内核数据段的段选择子
+	mov %ax, %ds				
+	mov %ax, %es				
+	mov %ax, %ss				
+	mov $_start, %esp			// 把_start符号的地址赋值给esp寄存器，这样就把栈指针初始化为_start符号的地址了
+	jmp .
 
+
+// gdt描述符, 由lgdt指令加载到gdtr寄存器中
+gdt_desc:
+	.word (256 * 8) - 1			// gdt的大小
+	.long gdt_table				// gdt的起始地址, 由c代码提供
