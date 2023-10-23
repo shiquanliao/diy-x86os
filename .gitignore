@@ -8,3 +8,6 @@ build
 *.o
 os_dis.txt
 disk.img
+.DS_Store
+os_elf.txt
+
