@@ -6,7 +6,7 @@
         {
             "label": "启动qemu",
             "type": "shell",
-            "command": "bash ${workspaceRoot}/script/qemu-debug-osx.sh",
+            "command": "echo 现在开始启动qemu, && bash ${workspaceRoot}/script/qemu-debug-osx.sh",
             "windows": {
                 "command": "${workspaceRoot}/script/qemu-debug-win.bat"
             },
@@ -26,7 +26,7 @@
         {
             "label": "编译",
             "type": "shell",
-            "command": "make",
+            "command": "make && echo 编译完成",
             "group": {
                 "kind": "build",
                 "isDefault": true

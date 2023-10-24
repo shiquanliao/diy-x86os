@@ -12,6 +12,9 @@
 	// 声明本地以下符号是全局的，在其它源文件中可以访问
 	.global _start
 
+	// 当需要引用外部的符号是，使用extern声明。相当于C语言中的extern
+	.extern gdt_table, pde_table
+
 	// 指定以下的代码生成16位的机器指令，这样才能在启动时的实模式下运行
   	.code16
 
@@ -60,7 +63,24 @@ _start_32:
 	mov %ax, %es				
 	mov %ax, %ss				
 	mov $_start, %esp			// 把_start符号的地址赋值给esp寄存器，这样就把栈指针初始化为_start符号的地址了
+
+	// 跳转到C代码
+	call os_init				// 调用os_init函数
+
+	// 打开分页机制
+	mov $pde_table, %eax			// 把pg_dir符号的地址赋值给eax寄存器
+	mov %eax, %cr3				// 把eax寄存器的值赋值给cr3寄存器
+
+	mov %cr4, %eax				// 把cr4寄存器的值赋值给eax寄存器
+	orl $(1 << 4), %eax			// 把eax寄存器的值或上0x10，这样就把cr4寄存器的PSE位置1了, 支持4M分页
+	mov %eax, %cr4				// 把eax寄存器的值赋值给cr4寄存器
+
+	mov %cr0, %eax				// 把cr0寄存器的值赋值给eax寄存器
+	orl $(1 << 31), %eax		// 把eax寄存器的值或上0x80000000，这样就把cr0寄存器的PG位置1了, 打开分页机制
+	mov %eax, %cr0				// 把eax寄存器的值赋值给cr0寄存器
+
 	jmp .
+
 
 
 // gdt描述符, 由lgdt指令加载到gdtr寄存器中

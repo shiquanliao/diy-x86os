@@ -9,10 +9,26 @@
  */
 #include "os.h"
 
+/**
+ * @brief 系统页表
+ * 下面配置中只做了一个处理，即将0x0-4MB虚拟地址映射到0-4MB的物理地址，做恒等映射。
+ */
+#define MAP_ADDR (0X80000000) // 页表映射地址
+#define PDE_P (1 << 0)        // 页表存在
+#define PDE_W (1 << 1)        // 页表可写
+#define PDE_U (1 << 2)        // 页表用户态
+#define PDE_PS (1 << 7)       // 页表4MB页
+
 // 定义类型
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
+
+uint8_t map_phy_buffer[4096] __attribute__((aligned(4096))) = {0x36};     // align 4096: 4KB对齐, map_phy_buffer是一个页表，页表大小为4KB
+static uint32_t pte_table[1024] __attribute__((aligned(4096))) = {PDE_U}; // 要给个值，否则其实始化值不确定
+uint32_t pde_table[1024] __attribute__((aligned(4096))) = {
+    [0] = (0) | PDE_P | PDE_PS | PDE_W | PDE_U, // PDE_PS，开启4MB的页，恒等映射
+};
 
 struct
 {
@@ -23,3 +39,11 @@ struct
     // 0x00cf93000000ffff - 从0地址开始，P存在，DPL=0，Type=非系统段，数据段，界限4G，可读写
     [KERNEL_DATA_SEG / 8] = {0xffff, 0x0000, 0x9200, 0x00cf},
 };
+
+void os_init(void)
+{
+    // 虚拟内存
+    // 0x80000000开始的4MB区域的映射
+    pde_table[MAP_ADDR >> 22] = (uint32_t)pte_table | PDE_P | PDE_W | PDE_U;
+    pte_table[(MAP_ADDR >> 12) & 0x3FF] = (uint32_t)map_phy_buffer | PDE_P | PDE_W | PDE_U;
+}
