@@ -10,10 +10,10 @@
 	#include "os.h"
 
 	// 声明本地以下符号是全局的，在其它源文件中可以访问
-	.global _start
+	.global _start, timer_init
 
 	// 当需要引用外部的符号是，使用extern声明。相当于C语言中的extern
-	.extern gdt_table, pde_table
+	.extern gdt_table, pde_table, idt_table
 
 	// 指定以下的代码生成16位的机器指令，这样才能在启动时的实模式下运行
   	.code16
@@ -45,6 +45,7 @@ _read_self_all:
 	// 加载ldt和gdt表, 进入保护模式
 	cli					// 关闭中断
 	lgdt gdt_desc		// 加载gdt描述符到gdtr寄存器
+	lidt idt_desc		// 加载idt描述符到idtr寄存器
 	mov $1, %eax
 	lmsw %ax			// 加载cr0寄存器
 	jmp $KERNEL_CODE_SEG, $_start_32	// 跳转到32位代码区
@@ -79,11 +80,29 @@ _start_32:
 	orl $(1 << 31), %eax		// 把eax寄存器的值或上0x80000000，这样就把cr0寄存器的PG位置1了, 打开分页机制
 	mov %eax, %cr0				// 把eax寄存器的值赋值给cr0寄存器
 
+	sti							// 打开中断
+
 	jmp .
 
+// 定时器0的中断处理函数, 该函数在os.c中定义
+timer_init:
+	push %ds					// 保存ds寄存器
+	pusha						// 保存通用寄存器
+
+	mov $0x20, %al				// 设置al寄存器的值为0x20，这是EOI的值
+	outb %al, $0x20				// 发送EOI到主片
+
+	popa						// 恢复通用寄存器
+	pop %ds						// 恢复ds寄存器
+	iret						// 中断返回
 
 
 // gdt描述符, 由lgdt指令加载到gdtr寄存器中
 gdt_desc:
 	.word (256 * 8) - 1			// gdt的大小
 	.long gdt_table				// gdt的起始地址, 由c代码提供
+
+// idt描述符, 由lidt指令加载到idtr寄存器中
+idt_desc:
+	.word (256 * 8) - 1			// idt的大小
+	.long idt_table				// idt的起始地址, 由c代码提供

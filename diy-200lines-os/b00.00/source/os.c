@@ -30,6 +30,13 @@ uint32_t pde_table[1024] __attribute__((aligned(4096))) = {
     [0] = (0) | PDE_P | PDE_PS | PDE_W | PDE_U, // PDE_PS，开启4MB的页，恒等映射
 };
 
+// ldt_table: 局部描述符表
+struct
+{
+    uint16_t offset_l, selector, attr, offset_h;
+} idt_table[256] __attribute__((aligned(8))) = {1};
+
+// gdt_table: 全局描述符表
 struct
 {
     uint16_t limit_l, base_l, basehl_attr, base_limit;
@@ -40,8 +47,42 @@ struct
     [KERNEL_DATA_SEG / 8] = {0xffff, 0x0000, 0x9200, 0x00cf},
 };
 
+// outb: 向端口写入一个字节
+void outb(uint8_t data, uint16_t port)
+{
+    // c调用汇编, 语法: __asm__ __volatile__("汇编指令" : : "寄存器"(变量));
+    __asm__ __volatile__("outb %[v], %[p]" : : [p] "d"(port), [v] "a"(data));
+}
+
+// timer_init: 初始化定时器
+void timer_init(void);
+
 void os_init(void)
 {
+    // 初始化8259中断控制器，打开定时器中断
+    outb(0x11, 0x20);           // 开始初始化主芯片
+    outb(0x11, 0xA0);           // 初始化从芯片
+    outb(0x20, 0x21);           // 写ICW2，告诉主芯片中断向量从0x20开始
+    outb(0x28, 0xa1);           // 写ICW2，告诉从芯片中断向量从0x28开始
+    outb((1 << 2), 0x21);       // 写ICW3，告诉主芯片IRQ2上连接有从芯片
+    outb(2, 0xa1);              // 写ICW3，告诉从芯片连接g到主芯片的IRQ2上
+    outb(0x1, 0x21);            // 写ICW4，告诉主芯片8086、普通EOI、非缓冲模式
+    outb(0x1, 0xa1);            // 写ICW4，告诉主芯片8086、普通EOI、非缓冲模式
+    outb(0xfe, 0x21);           // 开定时中断，其它屏幕
+    outb(0xff, 0xa1);           // 屏幕所有中断
+
+    // 设置定时器，每100ms中断一次
+    int tmo = (1193180);        // 时钟频率为1193180
+    outb(0x36, 0x43);           // 二进制计数、模式3、通道0
+    outb((uint8_t)tmo, 0x40);   // 写入低8位
+    outb(tmo >> 8, 0x40);       // 写入高8位
+
+    // 添加中断
+    idt_table[0x20].offset_h = (uint32_t)timer_init >> 16;
+    idt_table[0x20].offset_l = (uint32_t)timer_init & 0xffff;
+    idt_table[0x20].selector = KERNEL_CODE_SEG;
+    idt_table[0x20].attr = 0x8E00; // 存在，DPL=0, 中断门
+
     // 虚拟内存
     // 0x80000000开始的4MB区域的映射
     pde_table[MAP_ADDR >> 22] = (uint32_t)pte_table | PDE_P | PDE_W | PDE_U;
