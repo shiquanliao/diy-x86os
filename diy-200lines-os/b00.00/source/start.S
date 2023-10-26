@@ -13,7 +13,7 @@
 	.global _start, timer_init
 
 	// 当需要引用外部的符号是，使用extern声明。相当于C语言中的extern
-	.extern gdt_table, pde_table, idt_table
+	.extern gdt_table, pde_table, idt_table, task_0
 
 	// 指定以下的代码生成16位的机器指令，这样才能在启动时的实模式下运行
   	.code16
@@ -80,9 +80,27 @@ _start_32:
 	orl $(1 << 31), %eax		// 把eax寄存器的值或上0x80000000，这样就把cr0寄存器的PG位置1了, 打开分页机制
 	mov %eax, %cr0				// 把eax寄存器的值赋值给cr0寄存器
 
-	sti							// 打开中断
+	; sti							// 打开中断
+
+	// --------------------------- 模拟中断返回, 实现从特权级0到特权级3的转换 ---------------------------
+	// 以下代码用于模拟中断返回, 实现从特权级0到特权级3的转换
+	// // 中断发生时，会自动压入原SS, ESP, EFLAGS, CS, EIP到栈中
+	push $APP_DATA_SEG			// 把APP_DATA_SEG压入栈中, 出栈后会被加载到SS寄存器中
+	push $task_dpl3_stack + 1024		// 把task_dpl3_stack压入栈中, 出栈后会被加载到ESP寄存器中
+	push $0                     // 中断暂时关掉 0x202
+	push $APP_CODE_SEG			// 把APP_CODE_SEG压入栈中, 出栈后会被加载到CS寄存器中
+	push $task_0_entry			// 把task_0_entry压入栈中, 出栈后会被加载到EIP寄存器中
+	iret						// 中断返回, 会自动从栈中弹出SS, ESP, EFLAGS, CS, EIP, 并跳转到EIP指向的地址
 
 	jmp .
+
+// task_0 任务的入口
+task_0_entry:
+	// 进入任务0时，需要重设其数据段寄存器为特权级3的
+	mov %ss, %ax
+	mov %ax, %ds				
+	mov %ax, %es
+	jmp task_0					// 跳转到task_0任务中进行执行
 
 // 定时器0的中断处理函数, 该函数在os.c中定义
 timer_init:
