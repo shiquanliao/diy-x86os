@@ -15,6 +15,9 @@
 #define KERNEL_DATA_SEG     (2 * 8)
 #define APP_CODE_SEG        (3 * 8 | 3)                 // 3: 用户态, 特权级为3
 #define APP_DATA_SEG        (4 * 8 | 3)                 // 3: 用户态, 特权级为3
+#define TASK0_TSS_SEL       (5 * 8)                     // 任务0的TSS选择子
+#define TASK1_TSS_SEL       (6 * 8)                     // 任务1的TSS选择子
+#define SYSCALL_SEL         (7 * 8)                     // 系统调用选择子
 
 
 #endif // OS_H

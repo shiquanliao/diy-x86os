@@ -10,10 +10,10 @@
 	#include "os.h"
 
 	// 声明本地以下符号是全局的，在其它源文件中可以访问
-	.global _start, timer_init
+	.global _start, timer_init, syscall_handler
 
 	// 当需要引用外部的符号是，使用extern声明。相当于C语言中的extern
-	.extern gdt_table, pde_table, idt_table, task_0
+	.extern gdt_table, pde_table, idt_table, task_sched
 
 	// 指定以下的代码生成16位的机器指令，这样才能在启动时的实模式下运行
   	.code16
@@ -80,17 +80,23 @@ _start_32:
 	orl $(1 << 31), %eax		// 把eax寄存器的值或上0x80000000，这样就把cr0寄存器的PG位置1了, 打开分页机制
 	mov %eax, %cr0				// 把eax寄存器的值赋值给cr0寄存器
 
+	// 设置当前的任务0
+	// 模拟中断返回，返回至任务0，特权级3模式
+	mov $TASK0_TSS_SEL, %ax		// 加载任务0对应的状态段
+	ltr %ax
+
+	
 	; sti							// 打开中断
 
 	// --------------------------- 模拟中断返回, 实现从特权级0到特权级3的转换 ---------------------------
 	// 以下代码用于模拟中断返回, 实现从特权级0到特权级3的转换
 	// // 中断发生时，会自动压入原SS, ESP, EFLAGS, CS, EIP到栈中
-	push $APP_DATA_SEG			// 把APP_DATA_SEG压入栈中, 出栈后会被加载到SS寄存器中
+	push $APP_DATA_SEG					// 把APP_DATA_SEG压入栈中, 出栈后会被加载到SS寄存器中
 	push $task_dpl3_stack + 1024		// 把task_dpl3_stack压入栈中, 出栈后会被加载到ESP寄存器中
-	push $0                     // 中断暂时关掉 0x202
-	push $APP_CODE_SEG			// 把APP_CODE_SEG压入栈中, 出栈后会被加载到CS寄存器中
-	push $task_0_entry			// 把task_0_entry压入栈中, 出栈后会被加载到EIP寄存器中
-	iret						// 中断返回, 会自动从栈中弹出SS, ESP, EFLAGS, CS, EIP, 并跳转到EIP指向的地址
+	push $0x202                     	// 把EFLAGS压入栈中, 出栈后会被加载到EFLAGS寄存器中, 0x202是EFLAGS的默认值
+	push $APP_CODE_SEG					// 把APP_CODE_SEG压入栈中, 出栈后会被加载到CS寄存器中
+	push $task_0_entry					// 把task_0_entry压入栈中, 出栈后会被加载到EIP寄存器中
+	iret								// 中断返回, 会自动从栈中弹出SS, ESP, EFLAGS, CS, EIP, 并跳转到EIP指向的地址
 
 	jmp .
 
@@ -110,9 +116,27 @@ timer_init:
 	mov $0x20, %al				// 设置al寄存器的值为0x20，这是EOI的值
 	outb %al, $0x20				// 发送EOI到主片
 
+	call task_sched				// 调用任务调度函数 -------------------- 任务调度 --------------------
+
 	popa						// 恢复通用寄存器
 	pop %ds						// 恢复ds寄存器
 	iret						// 中断返回
+
+syscall_handler:
+	push %ds
+	pusha						// 保护现场，段寄存器不用保存
+	mov $KERNEL_DATA_SEG, %ax
+	mov %ax, %ds				//  Push AX, CX, DX, BX, original SP, BP, SI, and DI.
+
+	mov %esp, %ebp				// 下面压栈时，esp会不断变化，所以使用ebp作为基址
+	push 13*4(%ebp)				// 提取出原压入的各项参数，再按相同的顺序压入一遍
+	push 12*4(%ebp)
+	push 11*4(%ebp)
+	call do_syscall				// 调用api函数，注意这时是在特级0的模式下运行，可以做很多有需要高权限才能做的事
+	add $(3*4), %esp			// 取消刚才压入的值
+	popa						// 恢复现场
+	pop %ds
+	retf $(3*4)					// 使用远跳转
 
 
 // gdt描述符, 由lgdt指令加载到gdtr寄存器中
