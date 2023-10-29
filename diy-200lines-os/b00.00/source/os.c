@@ -29,6 +29,8 @@ typedef unsigned int uint32_t;
 // timer_init: 初始化定时器, 函数声明
 void timer_init(void);
 void syscall_handler(void);
+void task_0(void);
+void task_1(void);
 
 // --------------------------------- Global variable Define ---------------------------------
 uint8_t map_phy_buffer[4096] __attribute__((aligned(4096))) = {0x36};     // align 4096: 4KB对齐, map_phy_buffer是一个页表，页表大小为4KB
@@ -51,7 +53,7 @@ uint32_t task0_tss[] = {
     0x0,
     0x0,
     // cr3, eip, eflags, eax, ecx, edx, ebx, esp, ebp, esi, edi,
-    (uint32_t)pg_dir,
+    (uint32_t)pde_table,
     (uint32_t)task_0 /*入口地址*/,
     0x202,
     0xa,
@@ -83,7 +85,7 @@ uint32_t task1_tss[] = {
     0x0,
     0x0,
     // cr3, eip, eflags, eax, ecx, edx, ebx, esp, ebp, esi, edi,
-    (uint32_t)pg_dir,
+    (uint32_t)pde_table,
     (uint32_t)task_1 /*入口地址*/,
     0x202,
     0xa,
@@ -147,6 +149,7 @@ void task_sched (void) {
 
     // 更换当前任务的tss，然后切换过去
     task_tss = (task_tss == TASK0_TSS_SEL) ? TASK1_TSS_SEL : TASK0_TSS_SEL;
+    // 
     uint32_t addr[] = {0, task_tss };
     __asm__ __volatile__("ljmpl *(%[a])"::[a]"r"(addr));
 }

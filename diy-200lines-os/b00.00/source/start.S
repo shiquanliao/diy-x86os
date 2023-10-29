@@ -92,7 +92,7 @@ _start_32:
 	// 以下代码用于模拟中断返回, 实现从特权级0到特权级3的转换
 	// // 中断发生时，会自动压入原SS, ESP, EFLAGS, CS, EIP到栈中
 	push $APP_DATA_SEG					// 把APP_DATA_SEG压入栈中, 出栈后会被加载到SS寄存器中
-	push $task_dpl3_stack + 1024		// 把task_dpl3_stack压入栈中, 出栈后会被加载到ESP寄存器中
+	push $task0_dpl3_stack + 1024		// 把task0_dpl3_stack压入栈中, 出栈后会被加载到ESP寄存器中
 	push $0x202                     	// 把EFLAGS压入栈中, 出栈后会被加载到EFLAGS寄存器中, 0x202是EFLAGS的默认值
 	push $APP_CODE_SEG					// 把APP_CODE_SEG压入栈中, 出栈后会被加载到CS寄存器中
 	push $task_0_entry					// 把task_0_entry压入栈中, 出栈后会被加载到EIP寄存器中
