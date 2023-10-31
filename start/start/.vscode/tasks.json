@@ -17,6 +17,17 @@
             "options": {
                 "cwd": "${workspaceRoot}/../../image/"
             },
+            "dependsOn": [
+                "----------------- cmake"
+            ],
+        },
+        {
+            "label": "----------------- cmake",
+            "type": "shell",
+            "command": "cmake --build ${workspaceRoot}/build --config Debug --target all",
+
+
+
         },
         {
             "label": "----------------- start qemu(不要点)",
