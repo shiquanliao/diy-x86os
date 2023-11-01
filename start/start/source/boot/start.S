@@ -15,6 +15,9 @@
   	.code16
  	.text
 	.global _start
+
+	.extern boot_entry
+
 _start:
 	// 设置段寄存器
 	mov $0, %ax
@@ -28,6 +31,8 @@ _start:
 	// 使用0x7c00之前的空间作栈，大约有30KB的RAM，足够boot和loader使用
 	mov $_start, %esp
 
+// 显示欢迎语
+show_welcome:
 	// 显示“Hello, OS!”
 	mov $0x0e, %ah
 	mov $'H', %al
@@ -51,6 +56,19 @@ _start:
 	mov $'!', %al
 	int $0x10
 
+// 加载loader
+read_loader:
+	mov $0x8000, %bx 							// loader的加载地址
+	mov $0x2, %cx								// ch:磁道号，cl起始扇区号
+	mov $0x2, %ah						 		// ah: 0x2读磁盘命令
+	mov $64, %al								// al: 读取扇区数, 读取的扇区数量, 必须小于128，暂设置成32KB
+	mov $0x0080, %dx							// dh: 磁头号，dl驱动器号0x80(磁盘1)	
+	int $0x13									// 调用BIOS的13h中断，读取磁盘数据
+	jc read_loader								// 如果读取失败，重试
+
+
+	// 跳转到c代码执行, 由c处理后续流程, 包括跳转到loader
+	jmp boot_entry
 
 	jmp .
 	
