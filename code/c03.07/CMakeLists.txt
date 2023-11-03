@@ -1,5 +1,7 @@
 # 顶层cmakelist文件，以下的设置将被子工程所继承使用
-cmake_minimum_required(VERSION 3.0.0)
+cmake_minimum_required(VERSION 3.5.0)
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_SYSTEM_VERSION "0.0.0")
 
 # 保存一些通用的配置
 set(CMAKE_VERBOSE_MAKEFILE on)   # 开启输出编译详细过程的提示
