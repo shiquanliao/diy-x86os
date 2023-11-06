@@ -2,6 +2,7 @@
 project(loader LANGUAGES C)  
 
 # 使用自定义的链接器
+# -m32表示32位，-Ttext=0x8000表示代码段从0x8000开始
 set(CMAKE_EXE_LINKER_FLAGS "-m elf_i386 -Ttext=0x8000")
 set(CMAKE_C_LINK_EXECUTABLE "${LINKER_TOOL} <OBJECTS> ${CMAKE_EXE_LINKER_FLAGS} -o ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.elf")
 
@@ -11,6 +12,7 @@ file(GLOB C_LIST "*.c" "*.h")
 add_executable(${PROJECT_NAME} start.S ${C_LIST})
 
 # lbin文件生成，写入到image目录下
+# POST_BUILD表示在编译完成后执行
 add_custom_command(TARGET ${PROJECT_NAME}
                    POST_BUILD
                    COMMAND ${OBJCOPY_TOOL} -O binary ${PROJECT_NAME}.elf ${CMAKE_SOURCE_DIR}/../../image/${PROJECT_NAME}.bin
