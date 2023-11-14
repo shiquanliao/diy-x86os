@@ -4,6 +4,11 @@
 #include "comm/types.h"
 #include "comm/boot_info.h"
 #include "comm/utils.h"
+#include "comm/cpu_instr.h"
+
+
+// 保护模式入口函数，在start.asm中定义
+void protect_mode_entry (void);
 
 // __attribute__((packed)) 用于告诉编译器取消结构体的字节对齐
 typedef struct SMAP_entry
